@@ -1,23 +1,18 @@
 name: Build and Release WPF App
-
 on:
   push:
-    tags:
-      - 'v*' # e.g., v1.0.0
-  workflow_dispatch: {}        # allows manual Run workflow from Actions tab
-
+    tags: [ 'v*' ]  #eg. v1.0.0
+  workflow_dispatch: {}
 permissions:
-  contents: write              # <— create/update releases permission
+  contents: write   #permission
 
 jobs:
   build:
-    runs-on: windows-2022      
+    runs-on: windows-2022
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Setup .NET 9
-        uses: actions/setup-dotnet@v4
+      - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '9.0.x'
 
@@ -27,12 +22,16 @@ jobs:
       - name: Publish (self-contained single EXE)
         run: dotnet publish -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeAllContentForSelfExtract=true
 
+      - name: Debug list publish output
+        run: |
+          echo "Workspace: $Env:GITHUB_WORKSPACE"
+          dir bin\Release\net9.0-windows\win-x64\publish
+
       - name: Create/Update Release & Upload EXE
         uses: softprops/action-gh-release@v2
         with:
-          files: |
-            CnyThbConverter/bin/Release/net9.0-windows/win-x64/publish/*.exe
+          files: bin/Release/net9.0-windows/win-x64/publish/*.exe
           fail_on_unmatched_files: true
           generate_release_notes: true
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}   # built-in token, now permitted by `permissions`
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  #token with permision
