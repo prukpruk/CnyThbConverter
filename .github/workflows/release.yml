@@ -3,7 +3,7 @@ name: Build and Release WPF App
 on:
   push:
     tags:
-      - 'v*' 
+      - 'v*' # Runs only when you push a tag starting with "v" (e.g., v1.0.0)
 
 jobs:
   build:
@@ -23,20 +23,10 @@ jobs:
       - name: Build Release
         run: dotnet publish -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeAllContentForSelfExtract=true
 
-      - name: Create Release
-        id: create_release
-        uses: softprops/action-gh-release@v2
-        with:
-          name: Release ${{ github.ref_name }}
-          tag_name: ${{ github.ref_name }}
-        env:
-          GITHUB_TOKEN: ${{ secrets.GH_RELEASE_TOKEN }}
-          run: |
-
-      - name: Upload Build Artifact
+      - name: Upload Build Artifact to Release
         uses: softprops/action-gh-release@v2
         with:
           files: |
             CnyThbConverter/bin/Release/net9.0-windows/win-x64/publish/*.exe
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # Built-in token, no PAT required
