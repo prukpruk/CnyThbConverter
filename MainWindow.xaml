@@ -1,0 +1,64 @@
+<Window x:Class="CnyThbConverter.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="CNY ⇄ THB Converter" Height="220" Width="420" MinHeight="220" MinWidth="420"
+        WindowStartupLocation="CenterScreen" Background="#FAFAFA">
+    <Grid Margin="20">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="14"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="14"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <TextBlock Text="CNY ⇄ THB Converter" FontSize="18" FontWeight="SemiBold" Foreground="#222"/>
+
+        <Grid Grid.Row="2">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="14"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+
+            <StackPanel Grid.Column="0">
+                <TextBlock x:Name="FromLabel" Text="From (CNY)" Margin="0,0,0,6" Foreground="#444"/>
+                <TextBox x:Name="FromAmountBox"
+                         Height="36" Padding="8"
+                         Text="1"
+                         VerticalContentAlignment="Center"
+                         FontSize="14"
+                         PreviewTextInput="NumberOnly_PreviewTextInput"
+                         DataObject.Pasting="NumberOnly_Pasting"/>
+            </StackPanel>
+
+            <StackPanel Grid.Column="2">
+                <TextBlock x:Name="ToLabel" Text="To (THB)" Margin="0,0,0,6" Foreground="#444"/>
+                <TextBox x:Name="ToAmountBox"
+                         Height="36" Padding="8"
+                         Text=""
+                         IsReadOnly="True"
+                         VerticalContentAlignment="Center"
+                         FontSize="14"
+                         Background="#F1F1F1"
+                         Foreground="#222"/>
+            </StackPanel>
+        </Grid>
+
+        <StackPanel Grid.Row="4" Orientation="Horizontal" HorizontalAlignment="Left" >
+            <Button x:Name="ConvertButton"
+                    Click="ConvertButton_Click"
+                    Content="Convert"
+                    Height="36" MinWidth="110"
+                    Margin="0,0,10,0"
+                    Background="#2F6FED" Foreground="White"
+                    Padding="10,0" BorderThickness="0" />
+            <Button x:Name="SwitchButton"
+                    Click="SwitchButton_Click"
+                    Content="Switch Currencies"
+                    Height="36" MinWidth="150"
+                    Background="#ECECEC" Foreground="#222"
+                    Padding="10,0" BorderBrush="#DDD" />
+        </StackPanel>
+    </Grid>
+</Window>
