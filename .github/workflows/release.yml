@@ -3,11 +3,15 @@ name: Build and Release WPF App
 on:
   push:
     tags:
-      - 'v*' # Runs only when you push a tag starting with "v" (e.g., v1.0.0)
+      - 'v*' # e.g., v1.0.0
+  workflow_dispatch: {}        # allows manual Run workflow from Actions tab
+
+permissions:
+  contents: write              # <— create/update releases permission
 
 jobs:
   build:
-    runs-on: windows-latest
+    runs-on: windows-2022      
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -17,16 +21,18 @@ jobs:
         with:
           dotnet-version: '9.0.x'
 
-      - name: Restore dependencies
+      - name: Restore
         run: dotnet restore
 
-      - name: Build Release
+      - name: Publish (self-contained single EXE)
         run: dotnet publish -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeAllContentForSelfExtract=true
 
-      - name: Upload Build Artifact to Release
+      - name: Create/Update Release & Upload EXE
         uses: softprops/action-gh-release@v2
         with:
           files: |
             CnyThbConverter/bin/Release/net9.0-windows/win-x64/publish/*.exe
+          fail_on_unmatched_files: true
+          generate_release_notes: true
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # Built-in token, no PAT required
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}   # built-in token, now permitted by `permissions`
