@@ -5,57 +5,63 @@ using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
+using System.Windows.Input;
 
 namespace CnyThbConverter
 {
     public partial class MainWindow : Window
     {
         private static readonly HttpClient http = new HttpClient();
-        private readonly JsonSerializerOptions jsonOpts = new JsonSerializerOptions
-        {
-            PropertyNameCaseInsensitive = true
-        };
+        private readonly JsonSerializerOptions jsonOpts = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+        private bool _uiReady; // becomes true after Loaded
 
         public MainWindow()
         {
             InitializeComponent();
+            Loaded += OnLoaded;
+        }
+
+        private void OnLoaded(object? sender, RoutedEventArgs e)
+        {
             FromCode.ItemsSource = new[] { "CNY", "THB" };
             ToCode.ItemsSource   = new[] { "THB", "CNY" };
-            FromCode.SelectedIndex = 0; // CNY
-            ToCode.SelectedIndex   = 0; // THB (we’ll auto-correct below)
+            FromCode.SelectedIndex = 0;
+            ToCode.SelectedIndex   = 0;
             EnsureDifferentSides();
+            _uiReady = true;
         }
 
         private void EnsureDifferentSides()
         {
-            if (FromCode.SelectedItem?.ToString() == ToCode.SelectedItem?.ToString())
-            {
-                ToCode.SelectedItem = (FromCode.SelectedItem?.ToString() == "CNY") ? "THB" : "CNY";
-            }
+            var from = FromCode.SelectedItem?.ToString();
+            var to   = ToCode.SelectedItem?.ToString();
+            if (!string.IsNullOrEmpty(from) && from == to)
+                ToCode.SelectedItem = (from == "CNY") ? "THB" : "CNY";
         }
 
         private async Task ConvertAsync(CancellationToken ct = default)
         {
+            if (!_uiReady) return; // don't run before Loaded
             ResultText.Text = "";
             StatusText.Text = "Fetching rate…";
 
-            if (!decimal.TryParse(InputAmount.Text, out var amount) || amount < 0)
+            var amountText = InputAmount.Text?.Trim();
+            if (string.IsNullOrEmpty(amountText) || !decimal.TryParse(amountText, out var amount) || amount < 0)
             {
                 StatusText.Text = "Enter a valid amount.";
                 return;
             }
 
-            var from = FromCode.SelectedItem?.ToString() ?? "CNY";
-            var to   = ToCode.SelectedItem?.ToString()   ?? "THB";
-            if (from == to)
+            var from = FromCode.SelectedItem?.ToString();
+            var to   = ToCode.SelectedItem?.ToString();
+            if (string.IsNullOrEmpty(from) || string.IsNullOrEmpty(to) || from == to)
             {
-                StatusText.Text = "Currencies must be different.";
+                StatusText.Text = "Select two different currencies.";
                 return;
             }
 
             try
             {
-                // Frankfurter endpoint: https://api.frankfurter.app/latest?from=CNY&to=THB
                 var url = $"https://api.frankfurter.app/latest?from={from}&to={to}";
                 using var resp = await http.GetAsync(url, ct);
                 resp.EnsureSuccessStatusCode();
@@ -69,31 +75,61 @@ namespace CnyThbConverter
                 ResultText.Text = $"{converted:0.####} {to}";
                 StatusText.Text = $"1 {from} = {rate:0.####} {to} • {data.Date}";
             }
-            catch (Exception ex)
+            catch
             {
                 StatusText.Text = "Failed to fetch rate. Check internet or try again.";
-                // Optionally log ex.Message
             }
         }
 
-        private async void Convert_Click(object sender, RoutedEventArgs e)
-            => await ConvertAsync();
+        private async void Convert_Click(object sender, RoutedEventArgs e) => await ConvertAsync();
 
-        private void Swap_Click(object sender, RoutedEventArgs e)
+        private async void Swap_Click(object sender, RoutedEventArgs e)
         {
             var from = FromCode.SelectedItem?.ToString();
             FromCode.SelectedItem = ToCode.SelectedItem;
             ToCode.SelectedItem = from;
-            _ = ConvertAsync(); // auto-recalculate
+            EnsureDifferentSides();
+            await ConvertAsync();
         }
 
-        // Live update while typing (optional)
-        private async void InputAmount_TextChanged(object sender, System.Windows.Controls.TextChangedEventArgs e)
-            => await ConvertAsync();
+        // ---- Input validation (typing, keys, paste) ----
+        private static readonly Regex NumericRegex = new Regex(@"^[0-9.]$", RegexOptions.Compiled);
 
-        // Allow only numeric and dot
-        private void NumericOnly(object sender, System.Windows.Input.TextCompositionEventArgs e)
-            => e.Handled = !Regex.IsMatch(e.Text, @"^[0-9.]$");
+        private void NumericOnly(object sender, TextCompositionEventArgs e)
+        {
+            // allow only digits or dot, and only one dot overall
+            if (!NumericRegex.IsMatch(e.Text))
+            {
+                e.Handled = true;
+                return;
+            }
+            if (e.Text == "." && ((sender as System.Windows.Controls.TextBox)?.Text.Contains(".") ?? false))
+                e.Handled = true;
+        }
+
+        private void Amount_PreviewKeyDown(object sender, KeyEventArgs e)
+        {
+            // Permit control keys explicitly
+            if (e.Key == Key.Back || e.Key == Key.Delete || e.Key == Key.Left || e.Key == Key.Right
+                || e.Key == Key.Tab || e.Key == Key.Home || e.Key == Key.End)
+            {
+                e.Handled = false;
+            }
+        }
+
+        private void Amount_OnPaste(object sender, DataObjectPastingEventArgs e)
+        {
+            if (e.DataObject.GetDataPresent(DataFormats.Text))
+            {
+                var text = (string)e.DataObject.GetData(DataFormats.Text)!;
+                if (!decimal.TryParse(text, out _))
+                    e.CancelCommand();
+            }
+            else
+            {
+                e.CancelCommand();
+            }
+        }
     }
 
     public sealed class FrankfurterLatest

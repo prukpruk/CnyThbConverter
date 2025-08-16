@@ -14,9 +14,12 @@
         </Grid.RowDefinitions>
 
         <TextBlock Text="Amount" FontWeight="Bold"/>
-        <TextBox x:Name="InputAmount" Grid.Row="0" Margin="0,24,0,0" Height="32"
-                 VerticalContentAlignment="Center" PreviewTextInput="NumericOnly"
-                 TextChanged="InputAmount_TextChanged"/>
+        <TextBox x:Name="InputAmount"
+         Height="32"
+         VerticalContentAlignment="Center"
+         PreviewTextInput="NumericOnly"
+         PreviewKeyDown="Amount_PreviewKeyDown"
+         DataObject.Pasting="Amount_OnPaste"/>
 
         <StackPanel Grid.Row="2" Orientation="Horizontal" VerticalAlignment="Center" >
             <ComboBox x:Name="FromCode" Width="120" Margin="0,0,12,0"/>
