@@ -1,125 +1,106 @@
-using System.Globalization;
+using System;
 using System.Net.Http;
 using System.Text.Json;
-using System.Text.Json.Serialization;
+using System.Text.RegularExpressions;
+using System.Threading;
+using System.Threading.Tasks;
 using System.Windows;
-using System.Windows.Input;
 
 namespace CnyThbConverter
 {
     public partial class MainWindow : Window
     {
-        private readonly HttpClient _http = new HttpClient();
-        private string _from = "CNY";
-        private string _to = "THB";
+        private static readonly HttpClient http = new HttpClient();
+        private readonly JsonSerializerOptions jsonOpts = new JsonSerializerOptions
+        {
+            PropertyNameCaseInsensitive = true
+        };
 
         public MainWindow()
         {
             InitializeComponent();
-            UpdateLabels();
+            FromCode.ItemsSource = new[] { "CNY", "THB" };
+            ToCode.ItemsSource   = new[] { "THB", "CNY" };
+            FromCode.SelectedIndex = 0; // CNY
+            ToCode.SelectedIndex   = 0; // THB (we’ll auto-correct below)
+            EnsureDifferentSides();
         }
 
-        private async Task<decimal?> FetchRateAsync(string from, string to)
+        private void EnsureDifferentSides()
         {
-            var url = $"https://api.exchangerate.host/latest?base={Uri.EscapeDataString(from)}&symbols={Uri.EscapeDataString(to)}";
+            if (FromCode.SelectedItem?.ToString() == ToCode.SelectedItem?.ToString())
+            {
+                ToCode.SelectedItem = (FromCode.SelectedItem?.ToString() == "CNY") ? "THB" : "CNY";
+            }
+        }
+
+        private async Task ConvertAsync(CancellationToken ct = default)
+        {
+            ResultText.Text = "";
+            StatusText.Text = "Fetching rate…";
+
+            if (!decimal.TryParse(InputAmount.Text, out var amount) || amount < 0)
+            {
+                StatusText.Text = "Enter a valid amount.";
+                return;
+            }
+
+            var from = FromCode.SelectedItem?.ToString() ?? "CNY";
+            var to   = ToCode.SelectedItem?.ToString()   ?? "THB";
+            if (from == to)
+            {
+                StatusText.Text = "Currencies must be different.";
+                return;
+            }
 
             try
             {
-                using var resp = await _http.GetAsync(url);
+                // Frankfurter endpoint: https://api.frankfurter.app/latest?from=CNY&to=THB
+                var url = $"https://api.frankfurter.app/latest?from={from}&to={to}";
+                using var resp = await http.GetAsync(url, ct);
                 resp.EnsureSuccessStatusCode();
-                var json = await resp.Content.ReadAsStringAsync();
 
-                var data = JsonSerializer.Deserialize<ExchangeResponse>(json);
-                if (data?.Rates is not null && data.Rates.TryGetValue(to, out var rate))
-                {
-                    return rate;
-                }
-                return null;
+                var json = await resp.Content.ReadAsStringAsync(ct);
+                var data = JsonSerializer.Deserialize<FrankfurterLatest>(json, jsonOpts);
+                if (data?.Rates == null || !data.Rates.TryGetValue(to, out var rate))
+                    throw new InvalidOperationException("No rate returned.");
+
+                var converted = amount * (decimal)rate;
+                ResultText.Text = $"{converted:0.####} {to}";
+                StatusText.Text = $"1 {from} = {rate:0.####} {to} • {data.Date}";
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Failed to fetch rate.\n{ex.Message}", "Network Error",
-                    MessageBoxButton.OK, MessageBoxImage.Error);
-                return null;
+                StatusText.Text = "Failed to fetch rate. Check internet or try again.";
+                // Optionally log ex.Message
             }
         }
 
-        private async void ConvertButton_Click(object sender, RoutedEventArgs e)
+        private async void Convert_Click(object sender, RoutedEventArgs e)
+            => await ConvertAsync();
+
+        private void Swap_Click(object sender, RoutedEventArgs e)
         {
-            if (!TryParseDecimal(FromAmountBox.Text, out var amount))
-            {
-                MessageBox.Show("Please enter a valid number for the amount.", "Invalid Input",
-                    MessageBoxButton.OK, MessageBoxImage.Warning);
-                return;
-            }
-
-            ConvertButton.IsEnabled = false;
-            ConvertButton.Content = "Converting…";
-
-            var rate = await FetchRateAsync(_from, _to);
-            if (rate is null)
-            {
-                ConvertButton.IsEnabled = true;
-                ConvertButton.Content = "Convert";
-                return;
-            }
-
-            var result = amount * rate.Value;
-            ToAmountBox.Text = result.ToString("0.########", CultureInfo.InvariantCulture);
-
-            ConvertButton.IsEnabled = true;
-            ConvertButton.Content = "Convert";
+            var from = FromCode.SelectedItem?.ToString();
+            FromCode.SelectedItem = ToCode.SelectedItem;
+            ToCode.SelectedItem = from;
+            _ = ConvertAsync(); // auto-recalculate
         }
 
-        private void SwitchButton_Click(object sender, RoutedEventArgs e)
-        {
-            (_from, _to) = (_to, _from);
-            UpdateLabels();
+        // Live update while typing (optional)
+        private async void InputAmount_TextChanged(object sender, System.Windows.Controls.TextChangedEventArgs e)
+            => await ConvertAsync();
 
-            if (decimal.TryParse(ToAmountBox.Text, NumberStyles.Float, CultureInfo.InvariantCulture, out var toVal))
-            {
-                FromAmountBox.Text = toVal.ToString("0.########", CultureInfo.InvariantCulture);
-                ToAmountBox.Text = string.Empty;
-            }
-        }
-
-        private void UpdateLabels()
-        {
-            FromLabel.Text = $"From ({_from})";
-            ToLabel.Text = $"To ({_to})";
-            Title = $"{_from} ⇄ {_to} Converter";
-        }
-
-        private static bool TryParseDecimal(string? s, out decimal value)
-        {
-            if (s is null) { value = 0; return false; }
-            s = s.Trim().Replace(',', '.');
-            return decimal.TryParse(s, NumberStyles.Float, CultureInfo.InvariantCulture, out value);
-        }
-
-        private void NumberOnly_PreviewTextInput(object sender, TextCompositionEventArgs e)
-        {
-            var ch = e.Text;
-            e.Handled = !System.Text.RegularExpressions.Regex.IsMatch(ch, @"^[0-9\.\,]+$");
-        }
-        private void NumberOnly_Pasting(object sender, DataObjectPastingEventArgs e)
-        {
-            if (e.DataObject.GetDataPresent(typeof(string)))
-            {
-                var text = (string)e.DataObject.GetData(typeof(string))!;
-                if (!System.Text.RegularExpressions.Regex.IsMatch(text, @"^[0-9\.\,]+$"))
-                    e.CancelCommand();
-            }
-            else e.CancelCommand();
-        }
+        // Allow only numeric and dot
+        private void NumericOnly(object sender, System.Windows.Input.TextCompositionEventArgs e)
+            => e.Handled = !Regex.IsMatch(e.Text, @"^[0-9.]$");
     }
 
-    public sealed class ExchangeResponse
+    public sealed class FrankfurterLatest
     {
-        [JsonPropertyName("base")]
-        public string? Base { get; set; }
-
-        [JsonPropertyName("rates")]
-        public Dictionary<string, decimal>? Rates { get; set; }
+        public string Base { get; set; } = "";
+        public string Date { get; set; } = "";
+        public System.Collections.Generic.Dictionary<string, double> Rates { get; set; }
+            = new System.Collections.Generic.Dictionary<string, double>();
     }
 }
