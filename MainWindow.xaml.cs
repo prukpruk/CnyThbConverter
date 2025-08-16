@@ -12,7 +12,9 @@ namespace CnyThbConverter
     public partial class MainWindow : Window
     {
         private static readonly HttpClient http = new HttpClient();
-        private readonly JsonSerializerOptions jsonOpts = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+        private readonly JsonSerializerOptions jsonOpts =
+            new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+
         private bool _uiReady; // becomes true after Loaded
 
         public MainWindow()
@@ -39,16 +41,32 @@ namespace CnyThbConverter
                 ToCode.SelectedItem = (from == "CNY") ? "THB" : "CNY";
         }
 
+        // ---- Button-only conversion ----
+        private async void Convert_Click(object sender, RoutedEventArgs e)
+        {
+            await ConvertAsync();
+        }
+
+        private async void Swap_Click(object sender, RoutedEventArgs e)
+        {
+            var from = FromCode.SelectedItem?.ToString();
+            FromCode.SelectedItem = ToCode.SelectedItem;
+            ToCode.SelectedItem = from;
+            EnsureDifferentSides();
+            await ConvertAsync();
+        }
+
         private async Task ConvertAsync(CancellationToken ct = default)
         {
-            if (!_uiReady) return; // don't run before Loaded
+            if (!_uiReady) return; // not before UI is fully ready
+
             ResultText.Text = "";
             StatusText.Text = "Fetching rate…";
 
             var amountText = InputAmount.Text?.Trim();
-            if (string.IsNullOrEmpty(amountText) || !decimal.TryParse(amountText, out var amount) || amount < 0)
+            if (string.IsNullOrEmpty(amountText) || !decimal.TryParse(amountText, out var amount))
             {
-                StatusText.Text = "Enter a valid amount.";
+                StatusText.Text = "Enter digits only (e.g., 123).";
                 return;
             }
 
@@ -72,7 +90,7 @@ namespace CnyThbConverter
                     throw new InvalidOperationException("No rate returned.");
 
                 var converted = amount * (decimal)rate;
-                ResultText.Text = $"{converted:0.####} {to}";
+                ResultText.Text = $"{converted:0} {to}"; // no decimals since input is digits-only
                 StatusText.Text = $"1 {from} = {rate:0.####} {to} • {data.Date}";
             }
             catch
@@ -81,39 +99,23 @@ namespace CnyThbConverter
             }
         }
 
-        private async void Convert_Click(object sender, RoutedEventArgs e) => await ConvertAsync();
+        // ---- DIGITS-ONLY input (typing, control keys, paste) ----
+        private static readonly Regex DigitRegex = new Regex(@"^[0-9]$", RegexOptions.Compiled);
 
-        private async void Swap_Click(object sender, RoutedEventArgs e)
+        private void DigitsOnly(object sender, TextCompositionEventArgs e)
         {
-            var from = FromCode.SelectedItem?.ToString();
-            FromCode.SelectedItem = ToCode.SelectedItem;
-            ToCode.SelectedItem = from;
-            EnsureDifferentSides();
-            await ConvertAsync();
-        }
-
-        // ---- Input validation (typing, keys, paste) ----
-        private static readonly Regex NumericRegex = new Regex(@"^[0-9.]$", RegexOptions.Compiled);
-
-        private void NumericOnly(object sender, TextCompositionEventArgs e)
-        {
-            // allow only digits or dot, and only one dot overall
-            if (!NumericRegex.IsMatch(e.Text))
-            {
-                e.Handled = true;
-                return;
-            }
-            if (e.Text == "." && ((sender as System.Windows.Controls.TextBox)?.Text.Contains(".") ?? false))
-                e.Handled = true;
+            // Accept only single digits 0-9
+            e.Handled = !DigitRegex.IsMatch(e.Text);
         }
 
         private void Amount_PreviewKeyDown(object sender, KeyEventArgs e)
         {
-            // Permit control keys explicitly
+            // Allow navigation & editing keys regardless of digits-only rule
             if (e.Key == Key.Back || e.Key == Key.Delete || e.Key == Key.Left || e.Key == Key.Right
                 || e.Key == Key.Tab || e.Key == Key.Home || e.Key == Key.End)
             {
                 e.Handled = false;
+                return;
             }
         }
 
@@ -122,8 +124,15 @@ namespace CnyThbConverter
             if (e.DataObject.GetDataPresent(DataFormats.Text))
             {
                 var text = (string)e.DataObject.GetData(DataFormats.Text)!;
-                if (!decimal.TryParse(text, out _))
-                    e.CancelCommand();
+                // Reject paste if any non-digit is present
+                foreach (var ch in text)
+                {
+                    if (ch < '0' || ch > '9')
+                    {
+                        e.CancelCommand();
+                        return;
+                    }
+                }
             }
             else
             {

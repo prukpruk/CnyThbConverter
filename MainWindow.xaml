@@ -17,7 +17,7 @@
         <TextBox x:Name="InputAmount"
          Height="32"
          VerticalContentAlignment="Center"
-         PreviewTextInput="NumericOnly"
+         PreviewTextInput="DigitsOnly"
          PreviewKeyDown="Amount_PreviewKeyDown"
          DataObject.Pasting="Amount_OnPaste"/>
 
