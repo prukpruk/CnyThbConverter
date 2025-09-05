@@ -6,6 +6,86 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Input;
+using System.Globalization;
+if (!decimal.TryParse(inputTextBox.Text.Trim(), NumberStyles.Number, CultureInfo.InvariantCulture, out var amount))
+{
+    MessageBox.Show("Please enter a valid number (e.g., 1234.56).");
+    return;
+}
+using System.Net.Http;
+using System.Net.Http.Json;
+
+record RateResp(Dictionary<string, decimal> rates);
+
+static async Task<decimal> GetCnyThbRateAsync()
+{
+    using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(10) };
+    var resp = await http.GetFromJsonAsync<RateResp>("https://api.frankfurter.app/latest?from=CNY&to=THB");
+    if (resp is null || !resp.rates.TryGetValue("THB", out var thb)) throw new Exception("Rate not available");
+    return thb;
+}
+
+// inside ConvertButton_Click:
+try {
+    convertButton.IsEnabled = false;
+    var rate = await GetCnyThbRateAsync();
+    var output = amount * rate; // CNY -> THB (reverse if needed)
+    outputTextBox.Text = output.ToString("N2", CultureInfo.InvariantCulture);
+} catch (Exception ex) {
+    MessageBox.Show($"Error: {ex.Message}");
+} finally {
+    convertButton.IsEnabled = true;
+}
+
+private void InputTextBox_TextChanged(object sender, TextChangedEventArgs e)
+{
+    convertButton.IsEnabled = !string.IsNullOrWhiteSpace(inputTextBox.Text);
+}
+private async void ConvertButton_Click(object sender, RoutedEventArgs e)
+{
+    try
+    {
+        convertButton.IsEnabled = false;
+
+        // 1) Validate input (optional but recommended)
+        var raw = inputTextBox.Text?.Trim() ?? "";
+        if (string.IsNullOrWhiteSpace(raw))
+        {
+            MessageBox.Show("Please enter an amount.");
+            return;
+        }
+
+        // 2) Parse (use your existing parsing if you have one)
+        if (!decimal.TryParse(raw, NumberStyles.Number, CultureInfo.InvariantCulture, out var amount))
+        {
+            MessageBox.Show("Invalid number. Use format like 1234.56");
+            return;
+        }
+
+        // 3) Get rate (replace with your real method if different)
+        var rate = await GetCnyThbRateAsync();   // must be await, not .Result
+
+        // 4) Convert (CNY -> THB example; reverse if needed)
+        var output = amount * rate;
+
+        // 5) Show result (adjust your control names)
+        outputTextBox.Text = output.ToString("N2", CultureInfo.InvariantCulture);
+
+        // 6) Update timestamp ONLY on success
+        lastUpdatedText.Text = $"Last updated: {DateTime.Now:HH:mm:ss}";
+    }
+    catch (Exception ex)
+    {
+        MessageBox.Show($"Error: {ex.Message}");
+        // (Do NOT update the timestamp here—only on success)
+    }
+    finally
+    {
+        // Re-evaluate button state based on current input
+        convertButton.IsEnabled = !string.IsNullOrWhiteSpace(inputTextBox.Text);
+    }
+}
+
 
 namespace CnyThbConverter
 {
@@ -107,6 +187,8 @@ namespace CnyThbConverter
             // Accept only single digits 0-9
             e.Handled = !DigitRegex.IsMatch(e.Text);
         }
+        private async void ConvertButton_Click(object s, RoutedEventArgs e)
+
 
         private void Amount_PreviewKeyDown(object sender, KeyEventArgs e)
         {

@@ -27,11 +27,23 @@
             <ComboBox x:Name="ToCode" Width="120" Margin="12,0,0,0"/>
         </StackPanel>
 
-        <StackPanel Grid.Row="4" Orientation="Horizontal" VerticalAlignment="Center">
-            <Button x:Name="ConvertBtn" Content="Convert" Width="100" Click="Convert_Click"/>
-            <TextBlock Text=" Result:" Margin="16,0,0,0" VerticalAlignment="Center"/>
-            <TextBlock x:Name="ResultText" FontWeight="Bold" VerticalAlignment="Center"/>
-        </StackPanel>
+        <StackPanel Margin="16" Width="280">
+  <TextBox x:Name="inputTextBox"
+           Margin="0,0,0,8"
+           PlaceholderText="Enter amount"
+           TextChanged="InputTextBox_TextChanged"/>
+
+  <Button x:Name="convertButton"
+          Content="Convert"
+          IsEnabled="False"
+          Click="ConvertButton_Click"
+          Margin="0,0,0,4"/>
+
+  <TextBlock x:Name="lastUpdatedText"
+             Foreground="Gray"
+             Text="Last updated: --:--:--"/>
+</StackPanel>
+
 
         <TextBlock x:Name="StatusText" Grid.Row="5" Margin="0,16,0,0" Foreground="Gray"/>
     </Grid>
