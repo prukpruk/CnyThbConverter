@@ -1,15 +1,17 @@
 <Project Sdk="Microsoft.NET.Sdk">
+
   <PropertyGroup>
-    <OutputType>WinExe</OutputType>
-    <TargetFramework>net9.0-windows</TargetFramework>  <!-- or net8.0-windows -->
+    <!-- Choose net9.0-windows or net8.0-windows; keep the -windows suffix -->
+    <TargetFramework>net9.0-windows</TargetFramework>
     <UseWPF>true</UseWPF>
 
-    <!-- Publishing -->
-    <UseWPF>true</UseWPF>
+    <!-- Publishing settings that keep WPF happy -->
     <PublishSingleFile>true</PublishSingleFile>
     <PublishTrimmed>false</PublishTrimmed>
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
-    <SelfContained>true</SelfContained>
-    <InvariantGlobalization>true</InvariantGlobalization>
+
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
+
 </Project>

@@ -1,50 +1,29 @@
 <Window x:Class="CnyThbConverter.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="CNY ⇄ THB Converter" Height="260" Width="420"
-        ResizeMode="NoResize" WindowStartupLocation="CenterScreen">
-    <Grid Margin="16">
-        <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="10"/>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="10"/>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="*"/>
-        </Grid.RowDefinitions>
+        Title="CNY ⇄ THB Converter" Height="240" Width="360">
+    <StackPanel Margin="16">
+        <!-- Input -->
+        <TextBox x:Name="inputTextBox"
+                 Margin="0,0,0,8"
+                 TextChanged="InputTextBox_TextChanged"/>
 
-        <TextBlock Text="Amount" FontWeight="Bold"/>
-        <TextBox x:Name="InputAmount"
-         Height="32"
-         VerticalContentAlignment="Center"
-         PreviewTextInput="DigitsOnly"
-         PreviewKeyDown="Amount_PreviewKeyDown"
-         DataObject.Pasting="Amount_OnPaste"/>
-
-        <StackPanel Grid.Row="2" Orientation="Horizontal" VerticalAlignment="Center" >
-            <ComboBox x:Name="FromCode" Width="120" Margin="0,0,12,0"/>
-            <Button Content="⇄ Swap" Width="80" Click="Swap_Click"/>
-            <ComboBox x:Name="ToCode" Width="120" Margin="12,0,0,0"/>
+        <!-- Convert + timestamp -->
+        <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+            <Button x:Name="convertButton"
+                    Width="160"
+                    Content="Convert (CNY→THB)"
+                    IsEnabled="False"
+                    Click="ConvertButton_Click"
+                    Margin="0,0,8,0"/>
+            <TextBlock x:Name="lastUpdatedText"
+                       VerticalAlignment="Center"
+                       Foreground="Gray"
+                       Text="Last updated: --:--:--"/>
         </StackPanel>
 
-        <StackPanel Margin="16" Width="280">
-  <TextBox x:Name="inputTextBox"
-           Margin="0,0,0,8"
-           PlaceholderText="Enter amount"
-           TextChanged="InputTextBox_TextChanged"/>
-
-  <Button x:Name="convertButton"
-          Content="Convert"
-          IsEnabled="False"
-          Click="ConvertButton_Click"
-          Margin="0,0,0,4"/>
-
-  <TextBlock x:Name="lastUpdatedText"
-             Foreground="Gray"
-             Text="Last updated: --:--:--"/>
-</StackPanel>
-
-
-        <TextBlock x:Name="StatusText" Grid.Row="5" Margin="0,16,0,0" Foreground="Gray"/>
-    </Grid>
+        <!-- Output -->
+        <TextBox x:Name="outputTextBox"
+                 IsReadOnly="True"/>
+    </StackPanel>
 </Window>

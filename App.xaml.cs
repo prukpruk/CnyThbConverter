@@ -1,8 +1,6 @@
-using System.Windows;
-
-namespace CnyThbConverter
-{
-    public partial class App : Application
-    {
-    }
-}
+<Application x:Class="CnyThbConverter.App"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             StartupUri="MainWindow.xaml">
+    <Application.Resources/>
+</Application>
