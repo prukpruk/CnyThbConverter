@@ -3,39 +3,46 @@ name: Build and Release WPF App
 on:
   push:
     tags:
-      - 'v*' # Only trigger when you push a tag like v1.0.0
+      - 'v*'           # build whenever you push a tag like v1.0.9
+  workflow_dispatch:
 
 jobs:
   build:
     runs-on: windows-latest
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Setup .NET 9
+      - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '9.0.x'
 
-      - name: Restore dependencies
+      - name: Restore
         run: dotnet restore
 
-      - name: Build Release
-        run: dotnet publish -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeAllContentForSelfExtract=true
+      - name: Publish (self-contained EXE)
+        run: >
+          dotnet publish CnyThbConverter.csproj -c Release -r win-x64
+          --self-contained true
+          -p:PublishSingleFile=true
+          -p:PublishTrimmed=false
 
-      - name: Create Release
-        id: create_release
+      - name: Archive build output
+        uses: actions/upload-artifact@v4
+        with:
+          name: CnyThbConverter-win-x64
+          path: bin/Release/net9.0-windows/win-x64/publish/
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: CnyThbConverter-win-x64
+          path: dist
+
+      - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          name: Release ${{ github.ref_name }}
-          tag_name: ${{ github.ref_name }}
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Upload Build Artifact
-        uses: softprops/action-gh-release@v2
-        with:
-          files: |
-            CnyThbConverter/bin/Release/net9.0-windows/win-x64/publish/*.exe
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          files: dist/**
